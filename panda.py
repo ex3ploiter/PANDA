@@ -56,6 +56,10 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type):
     with torch.no_grad():
         for (imgs, _) in tqdm(train_loader, desc='Train set feature extracting'):
             imgs = imgs.to(device)
+
+            print('max : ' , torch.max(imgs))
+            print('min : ' , torch.min(imgs))
+
             _, features = model(imgs)
             train_feature_space.append(features.detach().cpu())
         train_feature_space = torch.cat(train_feature_space, dim=0).contiguous().cpu().numpy()
