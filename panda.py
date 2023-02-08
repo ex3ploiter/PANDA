@@ -23,8 +23,9 @@ def train_model(model, train_loader, test_loader, device, args, ewc_loss):
         auc, feature_space = get_score(model, device, train_loader, test_loader, args.attack_type)
         print('Epoch: {}, AUROC is: {}'.format(epoch + 1, auc))
 
-    adv_auc, feature_space = get_adv_score(model, device, train_loader, test_loader, args.attack_type)
-    print('ADV AUROC is: {}'.format(adv_auc))
+    pgd_adv_auc, feature_space = get_adv_score(model, device, train_loader, test_loader, 'PGD')
+    fgsm_adv_auc, feature_space = get_adv_score(model, device, train_loader, test_loader, 'FGSM')
+    print('PGD ADV AUROC is: {}, FGSM ADV AUROC is: {}'.format(pgd_adv_auc, fgsm_adv_auc))
 
 def run_epoch(model, train_loader, optimizer, criterion, device, ewc, ewc_loss):
     running_loss = 0.0
@@ -56,9 +57,6 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type):
     with torch.no_grad():
         for (imgs, _) in tqdm(train_loader, desc='Train set feature extracting'):
             imgs = imgs.to(device)
-
-            
-
             _, features = model(imgs)
             train_feature_space.append(features.detach().cpu())
         train_feature_space = torch.cat(train_feature_space, dim=0).contiguous().cpu().numpy()

@@ -85,4 +85,3 @@ def clip_gradient(optimizer, grad_clip):
                 continue
             param.grad.data.clamp_(-grad_clip, grad_clip)
 
-
