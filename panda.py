@@ -38,7 +38,7 @@ def train_model(model, train_loader, test_loader, device, args, ewc_loss):
     mine_result['setting'] = [] 
 
     for att_type in ['FGSM','PGD10']:
-        test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both, _ = get_adv_score(model, device, train_loader, test_loader, att_type,epsilon=args.epsilon,alpha=args.alpha)
+        test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both = get_adv_score(model, device, train_loader, test_loader, att_type,epsilon=args.epsilon,alpha=args.alpha)
 
         mine_result['Attack_Type'].extend([att_type]*4)
         mine_result['Attack_Target'].extend(['clean','normal','anomal','both'])
@@ -99,7 +99,7 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
     test_adversarial_feature_space = []
     adv_test_labels = []
 
-    for (imgs, labels) in tqdm(test_loader, desc='Test set adversarial feature extracting'):
+    for idx,(imgs, labels) in enumerate(tqdm(test_loader, desc='Test set adversarial feature extracting')):
         imgs = imgs.to(device)
         labels = labels.to(device)
         adv_imgs, labels, _, _ = test_attack(imgs, labels)
@@ -123,13 +123,13 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
     
     # adv_auc = roc_auc_score(adv_test_labels, adv_distances)
 
-    partition_scores(adv_distances,clear_distances,adv_test_labels)
+    test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both=partition_scores(adv_distances,clear_distances,adv_test_labels)
 
     del test_adversarial_feature_space, adv_distances, adv_test_labels
     gc.collect()
     torch.cuda.empty_cache()    
     
-    return partition_scores(adv_distances,clear_distances,labels), train_feature_space
+    return test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both
 
 def partition_scores(adv_scores,clear_scores,labels):
 
