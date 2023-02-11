@@ -187,6 +187,8 @@ def main(args):
     print(device)
     
     train_loader, test_loader,normal_obj = utils.get_loaders(dataset=args.dataset, path=args.dataset_path, label_class=args.label, batch_size=args.batch_size)    
+
+    self.normObj=normal_obj
     
     model = utils.get_resnet_model(resnet_type=args.resnet_type)
     model = model.to(device)
