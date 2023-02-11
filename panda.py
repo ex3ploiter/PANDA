@@ -83,7 +83,7 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
         train_feature_space = torch.cat(train_feature_space, dim=0).contiguous().cpu().numpy()
     clear_feature_space = []
     adv_feature_space=[]
-
+    mean_train = torch.mean(torch.Tensor(train_feature_space), axis=0)
     if attack_type == 'PGD100':
         test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=2/255, steps=100)
     elif attack_type == 'PGD10':
