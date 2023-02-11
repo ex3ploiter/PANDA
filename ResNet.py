@@ -218,7 +218,10 @@ class ResNet(nn.Module):
 
     def _forward_impl(self, x):
         # See note [TorchScript super()]
-        x = self.norm(x)
+        # x = self.norm(x)
+        x=self.normObj.normalize(x)
+
+
 
 
         x = self.conv1(x)

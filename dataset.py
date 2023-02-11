@@ -31,7 +31,8 @@ class normalizC:
         self.mu=mu 
         self.std=std
     def normalize(self,X):
-        return (X - self.mu)/self.
+        return (X - self.mu)/self.std
+
 
 def get_dataloader(dataset='cifar', path='~/mydataset', normal_class_indx = 0, batch_size=8):
     if dataset == 'cifar10':

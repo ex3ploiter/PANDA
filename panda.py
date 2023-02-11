@@ -9,6 +9,8 @@ from copy import deepcopy
 from tqdm import tqdm
 from KNN import KnnFGSM, KnnPGD
 import gc
+import pandas as pd
+import os 
 
 def train_model(model, train_loader, test_loader, device, args, ewc_loss):
     model.eval()
@@ -23,10 +25,28 @@ def train_model(model, train_loader, test_loader, device, args, ewc_loss):
         auc, feature_space = get_score(model, device, train_loader, test_loader, args.attack_type)
         print('Epoch: {}, AUROC is: {}'.format(epoch + 1, auc))
 
-    pgd_10_adv_auc, feature_space = get_adv_score(model, device, train_loader, test_loader, 'PGD10')
+    test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both, _ = get_adv_score(model, device, train_loader, test_loader, 'PGD10',epsilon=args.epsilon,alpha=args.alpha)
     # pgd_100_adv_auc, feature_space = get_adv_score(model, device, train_loader, test_loader, 'PGD100')
-    fgsm_adv_auc, feature_space = get_adv_score(model, device, train_loader, test_loader, 'FGSM')
-    print('PGD-10 ADV AUROC is: {}, FGSM ADV AUROC is: {}'.format(pgd_10_adv_auc, fgsm_adv_auc))
+    test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both, _ = get_adv_score(model, device, train_loader, test_loader, 'FGSM',epsilon=args.epsilon,alpha=args.alpha)
+    # print('PGD-10 ADV AUROC is: {}, FGSM ADV AUROC is: {}'.format(pgd_10_adv_auc, fgsm_adv_auc))
+
+
+    mine_result = {}
+    mine_result['Attack_Type'] = []
+    mine_result['Attack_Target'] = []
+    mine_result['ADV_AUC'] = []   
+    mine_result['setting'] = [] 
+
+    for att_type in ['FGSM','PGD10']:
+        test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both, _ = get_adv_score(model, device, train_loader, test_loader, att_type,epsilon=args.epsilon,alpha=args.alpha)
+
+        mine_result['Attack_Type'].extend([att_type]*4)
+        mine_result['Attack_Target'].extend(['clean','normal','anomal','both'])
+        mine_result['ADV_AUC'].extend([test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both])
+        mine_result['setting'].extend([{'Dataset Name': args.dataset},{'Epsilon': args.epsilon},{'Alpha': args.alpha},{'Attack Type': att_type}])        
+      
+    df = pd.DataFrame(mine_result)    
+    df.to_csv(os.path.join('./',f'Results_DN2_{args.dataset}_Class_{args.label}.csv'), index=False)
 
 def run_epoch(model, train_loader, optimizer, criterion, device, ewc, ewc_loss):
     running_loss = 0.0
@@ -53,7 +73,7 @@ def run_epoch(model, train_loader, optimizer, criterion, device, ewc, ewc_loss):
 
     return running_loss / (i + 1)
 
-def get_adv_score(model, device, train_loader, test_loader, attack_type):
+def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=8/255,alpha=1e-2):
     train_feature_space = []
     with torch.no_grad():
         for (imgs, _) in tqdm(train_loader, desc='Train set feature extracting'):
@@ -69,12 +89,13 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type):
 
     test_attack = None
     if attack_type == 'PGD100':
-        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=2/255, steps=100)
+        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=epsilon, alpha=alpha,steps=100)
     elif attack_type == 'PGD10':
-        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=2/255, steps=10)
-    else:
-        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=2/255, steps=1)
+        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=epsilon,alpha=alpha, steps=10)
+    elif attack_type=='FGSM':
+        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=epsilon,alpha=alpha, steps=1)
 
+    test_clear_feature_space = []
     test_adversarial_feature_space = []
     adv_test_labels = []
 
@@ -83,19 +104,48 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type):
         labels = labels.to(device)
         adv_imgs, labels, _, _ = test_attack(imgs, labels)
         adv_test_labels += labels.cpu().numpy().tolist()
+        
+        _, clear_features = model(imgs)
         _, adv_features = model(adv_imgs)
+        
+        test_clear_feature_space.append(clear_features.detach().cpu())
         test_adversarial_feature_space.append(adv_features.detach().cpu())
+        
         torch.cuda.empty_cache()
         del _,imgs, adv_imgs, adv_features, labels
     
+    test_clear_feature_space = torch.cat(test_clear_feature_space, dim=0).contiguous().detach().cpu().numpy()
     test_adversarial_feature_space = torch.cat(test_adversarial_feature_space, dim=0).contiguous().detach().cpu().numpy()
+    
+    
+    clear_distances = utils.knn_score(train_feature_space, test_clear_feature_space)
     adv_distances = utils.knn_score(train_feature_space, test_adversarial_feature_space)
-    adv_auc = roc_auc_score(adv_test_labels, adv_distances)
+    
+    # adv_auc = roc_auc_score(adv_test_labels, adv_distances)
+
+    partition_scores(adv_distances,clear_distances,adv_test_labels)
+
     del test_adversarial_feature_space, adv_distances, adv_test_labels
     gc.collect()
-    torch.cuda.empty_cache()
+    torch.cuda.empty_cache()    
+    
+    return partition_scores(adv_distances,clear_distances,labels), train_feature_space
 
-    return adv_auc, train_feature_space
+def partition_scores(adv_scores,clear_scores,labels):
+
+    clear_scores = np.array(clear_scores)
+    adv_scores = np.array(adv_scores)
+    labels = np.array(labels)
+
+    normal_idx=np.argwhere(labels==0).flatten().tolist()
+    anomal_idx=np.argwhere(labels==1).flatten().tolist()     
+
+    test_auc_clear=roc_auc_score(labels, clear_scores)
+    test_auc_normal=roc_auc_score(labels[normal_idx].tolist()+labels[anomal_idx].tolist(),adv_scores[normal_idx].tolist()+clear_scores[anomal_idx].tolist())
+    test_auc_anomal=roc_auc_score(labels[normal_idx].tolist()+labels[anomal_idx].tolist(),clear_scores[normal_idx].tolist()+adv_scores[anomal_idx].tolist())
+    test_auc_both=roc_auc_score(labels, adv_scores)   
+
+    return test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both
 
 
 def get_score(model, device, train_loader, test_loader, attack_type):
@@ -168,6 +218,9 @@ if __name__ == "__main__":
     parser.add_argument('--resnet_type', default=152, type=int, help='which resnet to use')
     parser.add_argument('--batch_size', default=16, type=int)
     parser.add_argument('--attack_type', default='PGD', type=str)
+    
+    parser.add_argument('--epsilon', default=8/255, type=float)
+    parser.add_argument('--alpha', default=1e-2, type=float)
 
     args = parser.parse_args()
 
