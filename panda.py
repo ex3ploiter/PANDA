@@ -84,6 +84,9 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
     clear_feature_space = []
     adv_feature_space=[]
     mean_train = torch.mean(torch.Tensor(train_feature_space), axis=0)
+
+    gc.collect()
+    torch.cuda.empty_cache()    
     if attack_type == 'PGD100':
         test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=2/255, steps=100)
     elif attack_type == 'PGD10':
@@ -110,11 +113,15 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
     clear_distances = utils.knn_score(train_feature_space, clear_feature_space)
     adv_distances = utils.knn_score(train_feature_space, adv_feature_space)
 
-    # partition_scores(adv_distances,clear_distances,test_labels)
+    test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both=partition_scores(adv_distances,clear_distances,test_labels)
 
     # auc = roc_auc_score(test_labels, distances)
 
-    return partition_scores(adv_distances,clear_distances,test_labels)
+    del test_adversarial_feature_space, adv_distances, adv_test_labels
+    gc.collect()
+    torch.cuda.empty_cache()    
+
+    return test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both
 
 def partition_scores(adv_scores,clear_scores,labels):
 
