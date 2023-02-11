@@ -102,10 +102,13 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
     for idx,(imgs, labels) in enumerate(tqdm(test_loader, desc='Test set adversarial feature extracting')):
         imgs = imgs.to(device)
         labels = labels.to(device)
-        adv_imgs, labels, _, _ = test_attack(imgs, labels)
         adv_test_labels += labels.cpu().numpy().tolist()
-        
+
         _, clear_features = model(imgs)
+        adv_imgs, labels, _, _ = test_attack(imgs, labels)
+
+        
+
         _, adv_features = model(adv_imgs)
         
         test_clear_feature_space.append(clear_features.detach().cpu())
