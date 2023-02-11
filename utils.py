@@ -71,7 +71,12 @@ def get_outliers_loader(batch_size):
 
 def get_loaders(dataset, path, label_class, batch_size):
     if dataset in ['cifar10', 'cifar100', 'fashion', 'mnist', 'mvtec', 'svhn']:
-        return get_dataloader(dataset, path, label_class, batch_size)
+        
+
+        train_loader, test_loader,normal_obj=get_dataloader(dataset, path, label_class, batch_size)
+        
+        return train_loader, test_loader,normal_obj
+        
     else:
         print('Unsupported Dataset')
         exit()

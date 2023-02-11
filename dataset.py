@@ -42,18 +42,22 @@ def get_dataloader(dataset='cifar', path='~/mydataset', normal_class_indx = 0, b
         mu = torch.tensor(ds_mean).view(3,1,1).cuda()
         std = torch.tensor(ds_std).view(3,1,1).cuda()      
         normal_obj=normalizC(mu,std)
+
+        train_loader, test_loader=get_CIFAR10(normal_class_indx, batch_size, path)              
         
-        return get_CIFAR10(normal_class_indx, batch_size, path),normal_obj
+        return train_loader, test_loader,normal_obj
     elif dataset == 'mnist':
         ds_mean = (0.1307, 0.1307, 0.1307)
         ds_std = (0.3081, 0.3081, 0.3081) 
         
         mu = torch.tensor(ds_mean).view(3,1,1).cuda()
         std = torch.tensor(ds_std).view(3,1,1).cuda()      
-        normal_obj=normalizC(mu,std),
+        normal_obj=normalizC(mu,std)
+
+        train_loader, test_loader=get_MNIST(normal_class_indx, batch_size, path)              
         
                
-        return get_MNIST(normal_class_indx, batch_size, path),normal_obj
+        return train_loader, test_loader,normal_obj
     elif dataset == 'fashion':
         ds_mean =(0.2859, 0.2859, 0.2859)
         ds_std = (0.3530, 0.3530, 0.3530)
@@ -63,7 +67,7 @@ def get_dataloader(dataset='cifar', path='~/mydataset', normal_class_indx = 0, b
         normal_obj=normalizC(mu,std)      
         
 
-        return get_FASHION_MNIST(normal_class_indx, batch_size, path),normal_obj
+        return train_loader, test_loader,normal_obj
     elif dataset == 'svhn':
         ds_mean =(0.491373, 0.482353, 0.446667)
         ds_std =(0.247059, 0.243529, 0.261569)  
@@ -72,8 +76,10 @@ def get_dataloader(dataset='cifar', path='~/mydataset', normal_class_indx = 0, b
         std = torch.tensor(ds_std).view(3,1,1).cuda()  
         normal_obj=normalizC(mu,std)    
 
-              
-        return get_SVHN(normal_class_indx, batch_size, path),normal_obj
+        train_loader, test_loader=get_SVHN(normal_class_indx, batch_size, path)              
+
+        
+        return train_loader, test_loader,normal_obj
     elif dataset == 'mvtec':
         ds_mean=(0.485, 0.456, 0.406)
         ds_std=(0.229, 0.224, 0.225)    
@@ -81,8 +87,11 @@ def get_dataloader(dataset='cifar', path='~/mydataset', normal_class_indx = 0, b
         mu = torch.tensor(ds_mean).view(3,1,1).cuda()
         std = torch.tensor(ds_std).view(3,1,1).cuda()      
         normal_obj=normalizC(mu,std)
+
+        train_loader, test_loader=get_MVTEC(normal_class_indx, batch_size, path)              
             
-        return get_MVTEC(normal_class_indx, batch_size, path),normal_obj
+        return train_loader, test_loader,normal_obj
+        
     else:
         raise Exception("Dataset is not supported yet. ")
 
