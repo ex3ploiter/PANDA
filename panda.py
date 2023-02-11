@@ -25,9 +25,9 @@ def train_model(model, train_loader, test_loader, device, args, ewc_loss):
         auc, feature_space = get_score(model, device, train_loader, test_loader, args.attack_type)
         print('Epoch: {}, AUROC is: {}'.format(epoch + 1, auc))
 
-    test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both, _ = get_adv_score(model, device, train_loader, test_loader, 'PGD10',epsilon=args.epsilon,alpha=args.alpha)
+    # test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both, _ = get_adv_score(model, device, train_loader, test_loader, 'PGD10',epsilon=args.epsilon,alpha=args.alpha)
     # pgd_100_adv_auc, feature_space = get_adv_score(model, device, train_loader, test_loader, 'PGD100')
-    test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both, _ = get_adv_score(model, device, train_loader, test_loader, 'FGSM',epsilon=args.epsilon,alpha=args.alpha)
+    # test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both, _ = get_adv_score(model, device, train_loader, test_loader, 'FGSM',epsilon=args.epsilon,alpha=args.alpha)
     # print('PGD-10 ADV AUROC is: {}, FGSM ADV AUROC is: {}'.format(pgd_10_adv_auc, fgsm_adv_auc))
 
 
