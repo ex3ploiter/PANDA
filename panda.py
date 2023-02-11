@@ -79,60 +79,42 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
         for (imgs, _) in tqdm(train_loader, desc='Train set feature extracting'):
             imgs = imgs.to(device)
             _, features = model(imgs)
-            train_feature_space.append(features.detach().cpu())
+            train_feature_space.append(features)
         train_feature_space = torch.cat(train_feature_space, dim=0).contiguous().cpu().numpy()
+    clear_feature_space = []
+    adv_feature_space=[]
 
-    mean_train = torch.mean(torch.Tensor(train_feature_space), axis=0)
-
-    gc.collect()
-    torch.cuda.empty_cache()
-
-    test_attack = None
     if attack_type == 'PGD100':
-        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=epsilon, alpha=alpha,steps=100)
+        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=2/255, steps=100)
     elif attack_type == 'PGD10':
-        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=epsilon,alpha=alpha, steps=10)
-    elif attack_type=='FGSM':
-        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=epsilon,alpha=alpha, steps=1)
+        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=2/255, steps=10)
+    else:
+        test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=2/255, steps=1)
 
-    test_clear_feature_space = []
-    test_adversarial_feature_space = []
-    adv_test_labels = []
-
-    for idx,(imgs, labels) in enumerate(tqdm(test_loader, desc='Test set adversarial feature extracting')):
+    
+    for (imgs, labels) in tqdm(test_loader, desc='Test set feature extracting'):
         imgs = imgs.to(device)
-        labels = labels.to(device)
-        adv_test_labels += labels.cpu().numpy().tolist()
+        _, features = model(imgs)
+        clear_feature_space.append(features)
 
-        _, clear_features = model(imgs)
-        adv_imgs, labels, _, _ = test_attack(imgs, labels)
-
-        
-
+        adv_imgs, labels, _, _ = test_attack(imgs, labels)        
         _, adv_features = model(adv_imgs)
-        
-        test_clear_feature_space.append(clear_features.detach().cpu())
-        test_adversarial_feature_space.append(adv_features.detach().cpu())
-        
-        torch.cuda.empty_cache()
-        del _,imgs, adv_imgs, adv_features, labels
-    
-    test_clear_feature_space = torch.cat(test_clear_feature_space, dim=0).contiguous().detach().cpu().numpy()
-    test_adversarial_feature_space = torch.cat(test_adversarial_feature_space, dim=0).contiguous().detach().cpu().numpy()
+        adv_feature_space.append(adv_features)
     
     
-    clear_distances = utils.knn_score(train_feature_space, test_clear_feature_space)
-    adv_distances = utils.knn_score(train_feature_space, test_adversarial_feature_space)
+    clear_feature_space = torch.cat(clear_feature_space, dim=0).contiguous().cpu().numpy()
+    adv_feature_space = torch.cat(adv_feature_space, dim=0).contiguous().cpu().numpy()
     
-    # adv_auc = roc_auc_score(adv_test_labels, adv_distances)
+    test_labels = test_loader.dataset.targets
 
-    test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both=partition_scores(adv_distances,clear_distances,adv_test_labels)
+    clear_distances = utils.knn_score(train_feature_space, clear_feature_space)
+    adv_distances = utils.knn_score(train_feature_space, adv_feature_space)
 
-    del test_adversarial_feature_space, adv_distances, adv_test_labels
-    gc.collect()
-    torch.cuda.empty_cache()    
-    
-    return test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both
+    # partition_scores(adv_distances,clear_distances,test_labels)
+
+    # auc = roc_auc_score(test_labels, distances)
+
+    return partition_scores(adv_distances,clear_distances,test_labels)
 
 def partition_scores(adv_scores,clear_scores,labels):
 
