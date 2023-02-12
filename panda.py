@@ -11,6 +11,7 @@ from KNN import KnnFGSM, KnnPGD
 import gc
 import pandas as pd
 import os 
+import copy
 
 def train_model(model, train_loader, test_loader, device, args, ewc_loss):
     model.eval()
@@ -44,6 +45,11 @@ def train_model(model, train_loader, test_loader, device, args, ewc_loss):
         mine_result['Attack_Target'].extend(['clean','normal','anomal','both'])
         mine_result['ADV_AUC'].extend([test_auc_clear,test_auc_normal,test_auc_anomal,test_auc_both])
         mine_result['setting'].extend([{'Dataset Name': args.dataset},{'Epsilon': args.epsilon},{'Alpha': args.alpha},{'Attack Type': att_type}])        
+
+        print(f'{att_type} Adv Adverserial Clean: {test_auc_clear}')
+        print(f'{att_type} Adv Adverserial Normal: {test_auc_normal}')
+        print(f'{att_type} Adv Adverserial Anomal: {test_auc_anomal}')
+        print(f'{att_type} Adv Adverserial Both: {test_auc_both}\n\n')        
       
     df = pd.DataFrame(mine_result)    
     df.to_csv(os.path.join('./',f'Results_DN2_{args.dataset}_Class_{args.label}.csv'), index=False)
@@ -96,12 +102,12 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
 
     test_labels=[]
 
-    for (imgs, labels) in tqdm(test_loader, desc='Attacking...'):
+    for (imgs, labels) in tqdm(test_loader, desc=f'Attacking...{attack_type}'):
         imgs = imgs.to(device)
         _, features = model(imgs)
         clear_feature_space.append(features.detach().cpu())
 
-        adv_imgs, labels, _, _ = test_attack(imgs, labels)        
+        adv_imgs, _, _, _ = test_attack(copy.deepcopy(imgs), copy.deepcopy(labels))
         _, adv_features = model(adv_imgs)
         adv_feature_space.append(adv_features.detach().cpu())
 
