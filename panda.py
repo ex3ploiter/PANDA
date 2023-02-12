@@ -94,7 +94,8 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
     else:
         test_attack = KnnPGD.PGD_KNN(model, mean_train.to(device), eps=2/255, steps=1)
 
-    
+    test_labels=[]
+
     for (imgs, labels) in tqdm(test_loader, desc='Test set feature extracting'):
         imgs = imgs.to(device)
         _, features = model(imgs)
@@ -104,13 +105,15 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
         _, adv_features = model(adv_imgs)
         adv_feature_space.append(adv_features.detach().cpu())
 
+        test_labels.extend(labels.numpy().flatten().tolist())
+
         del _,imgs, adv_imgs, adv_features, labels
     
     
     clear_feature_space = torch.cat(clear_feature_space, dim=0).contiguous().cpu().numpy()
     adv_feature_space = torch.cat(adv_feature_space, dim=0).contiguous().cpu().numpy()
     
-    test_labels = test_loader.dataset.targets
+    # test_labels = test_loader.dataset.targets
 
     clear_distances = utils.knn_score(train_feature_space, clear_feature_space)
     adv_distances = utils.knn_score(train_feature_space, adv_feature_space)
@@ -119,7 +122,7 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
 
     # auc = roc_auc_score(test_labels, distances)
 
-    del test_adversarial_feature_space, adv_distances, adv_test_labels
+    # del test_adversarial_feature_space, adv_distances
     gc.collect()
     torch.cuda.empty_cache()    
 
