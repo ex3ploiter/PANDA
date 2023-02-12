@@ -110,7 +110,7 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
     clear_feature_space = torch.cat(clear_feature_space, dim=0).contiguous().cpu().numpy()
     adv_feature_space = torch.cat(adv_feature_space, dim=0).contiguous().cpu().numpy()
     
-    test_labels = test_loader.dataset.targets.numpy().tolist()
+    test_labels = test_loader.dataset.targets
 
     clear_distances = utils.knn_score(train_feature_space, clear_feature_space)
     adv_distances = utils.knn_score(train_feature_space, adv_feature_space)
