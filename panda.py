@@ -103,6 +103,8 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
         adv_imgs, labels, _, _ = test_attack(imgs, labels)        
         _, adv_features = model(adv_imgs)
         adv_feature_space.append(adv_features)
+
+        del _,imgs, adv_imgs, adv_features, labels
     
     
     clear_feature_space = torch.cat(clear_feature_space, dim=0).contiguous().cpu().numpy()
