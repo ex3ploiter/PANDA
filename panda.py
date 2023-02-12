@@ -98,11 +98,11 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
     for (imgs, labels) in tqdm(test_loader, desc='Test set feature extracting'):
         imgs = imgs.to(device)
         _, features = model(imgs)
-        clear_feature_space.append(features)
+        clear_feature_space.append(features.detach().cpu())
 
         adv_imgs, labels, _, _ = test_attack(imgs, labels)        
         _, adv_features = model(adv_imgs)
-        adv_feature_space.append(adv_features)
+        adv_feature_space.append(adv_features.detach().cpu())
 
         del _,imgs, adv_imgs, adv_features, labels
     
@@ -110,7 +110,7 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
     clear_feature_space = torch.cat(clear_feature_space, dim=0).contiguous().cpu().numpy()
     adv_feature_space = torch.cat(adv_feature_space, dim=0).contiguous().cpu().numpy()
     
-    test_labels = test_loader.dataset.targets
+    test_labels = test_loader.dataset.targets.numpy().tolist()
 
     clear_distances = utils.knn_score(train_feature_space, clear_feature_space)
     adv_distances = utils.knn_score(train_feature_space, adv_feature_space)
