@@ -96,7 +96,7 @@ def get_adv_score(model, device, train_loader, test_loader, attack_type,epsilon=
 
     test_labels=[]
 
-    for (imgs, labels) in tqdm(test_loader, desc='Test set feature extracting'):
+    for (imgs, labels) in tqdm(test_loader, desc='Attacking...'):
         imgs = imgs.to(device)
         _, features = model(imgs)
         clear_feature_space.append(features.detach().cpu())
