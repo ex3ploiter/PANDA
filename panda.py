@@ -63,7 +63,8 @@ def get_score(model, device, train_loader, test_loader):
             _, features = model(imgs)
             test_feature_space.append(features)
         test_feature_space = torch.cat(test_feature_space, dim=0).contiguous().cpu().numpy()
-        test_labels = test_loader.dataset.targets
+        # test_labels = test_loader.dataset.targets
+        test_labels=[j for (i,j) in test_loader.dataset.samples]
 
     distances = utils.knn_score(train_feature_space, test_feature_space)
 
