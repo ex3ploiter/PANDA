@@ -43,7 +43,7 @@ def get_resnet_model(resnet_type=152):
 
 
 
-class Model(torch.nn.Module):
+class Normal_Model(torch.nn.Module):
     def __init__(self, resnet_type):
         super().__init__()
 
@@ -57,7 +57,7 @@ class Model(torch.nn.Module):
         if resnet_type == 18:
             self.backbone=ResNet.resnet18(pretrained=True, progress=True)
         elif resnet_type == 50:
-            return ResNet.wide_resnet50_2(pretrained=True, progress=True)
+            self.backbone=ResNet.wide_resnet50_2(pretrained=True, progress=True)
         elif resnet_type == 101:
             self.backbone=ResNet.resnet101(pretrained=True, progress=True)
         else:  #152
@@ -76,16 +76,16 @@ def freeze_model(model):
     return
 
 def freeze_parameters(model, train_fc=False):
-    for p in model.conv1.parameters():
+    for p in model.backbone.conv1.parameters():
         p.requires_grad = False
-    for p in model.bn1.parameters():
+    for p in model.backbone.bn1.parameters():
         p.requires_grad = False
-    for p in model.layer1.parameters():
+    for p in model.backbone.layer1.parameters():
         p.requires_grad = False
-    for p in model.layer2.parameters():
+    for p in model.backbone.layer2.parameters():
         p.requires_grad = False
     if not train_fc:
-        for p in model.fc.parameters():
+        for p in model.backbone.fc.parameters():
             p.requires_grad = False
 
 def knn_score(train_set, test_set, n_neighbours=2):

@@ -11,6 +11,7 @@ import torchvision
 import torch.nn as nn
 import torchattacks
 import torch.nn.functional as F
+from utils import Normal_Model
 
 
 
@@ -138,14 +139,14 @@ def get_score(model, device, train_loader, test_loader):
             train_feature_space.append(features)
         train_feature_space = torch.cat(train_feature_space, dim=0).contiguous().cpu().numpy()
     test_feature_space = []
-    with torch.no_grad():
-        for (imgs, _) in tqdm(test_loader, desc='Test set feature extracting'):
-            imgs = imgs.to(device)
-            _, features = model(imgs)
-            test_feature_space.append(features)
-        test_feature_space = torch.cat(test_feature_space, dim=0).contiguous().cpu().numpy()
-        # test_labels = test_loader.dataset.targets
-        test_labels=[j for (i,j) in test_loader.dataset.samples]
+    # with torch.no_grad():
+    for (imgs, _) in tqdm(test_loader, desc='Test set feature extracting'):
+        imgs = imgs.to(device)
+        _, features = model(imgs)
+        test_feature_space.append(features.detach().cpu())
+    test_feature_space = torch.cat(test_feature_space, dim=0).contiguous().cpu().numpy()
+    # test_labels = test_loader.dataset.targets
+    test_labels=[j for (i,j) in test_loader.dataset.samples]
 
     distances = utils.knn_score(train_feature_space, test_feature_space)
 
@@ -193,7 +194,8 @@ def main(args):
     print('Dataset: {}, Normal Label: {}, LR: {}'.format(args.dataset, args.label, args.lr))
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(device)
-    model = utils.get_resnet_model(resnet_type=args.resnet_type)
+    # model = utils.get_resnet_model(resnet_type=args.resnet_type)
+    model=Normal_Model(args.resnet_type)
     model = model.to(device)
 
     ewc_loss = None
