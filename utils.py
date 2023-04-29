@@ -4,6 +4,9 @@ import torchvision.transforms as transforms
 import numpy as np
 import faiss
 import ResNet
+from torchvision.datasets import  ImageFolder
+
+
 
 mvtype = ['bottle', 'cable', 'capsule', 'carpet', 'grid', 'hazelnut', 'leather',
           'metal_nut', 'pill', 'screw', 'tile', 'toothbrush', 'transistor',
@@ -84,11 +87,33 @@ def get_loaders(dataset, label_class, batch_size):
             coarse = {}
             trainset = ds(root='data', train=True, download=True, transform=transform, **coarse)
             testset = ds(root='data', train=False, download=True, transform=transform, **coarse)
+        
+        elif dataset == "BrainMRI" or dataset == "X-ray" or dataset == "Head-CT":    
+            if dataset == "BrainMRI" : # 2
+                path1='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/Training'
+                path2='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/Testing'
+            elif dataset == "X-ray" : # 0
+                path1='/mnt/new_drive/Sepehr/chest_xray/train'
+                path2='/mnt/new_drive/Sepehr/chest_xray/test'
+
+            elif dataset == "Head-CT" :# 1
+                path1='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Train/'
+                path2='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Test/'     
+        
+        trainset = ImageFolder(root=path1, transform=transform)
+        testset = ImageFolder(root=path2, transform=transform)       
+                
+            
 
         idx = np.array(trainset.targets) == label_class
-        testset.targets = [int(t != label_class) for t in testset.targets]
-        trainset.data = trainset.data[idx]
-        trainset.targets = [trainset.targets[i] for i, flag in enumerate(idx, 0) if flag]
+        # testset.targets = [int(t != label_class) for t in testset.targets]
+        testset.samples=[(pth,int(target!=label_class)) for (pth,target) in testset.samples]
+        
+        # trainset.data = trainset.data[idx]
+        # trainset.targets = [trainset.targets[i] for i, flag in enumerate(idx, 0) if flag]
+        trainset = torch.utils.data.Subset(trainset, idx)
+        trainset.samples=[(pth,int(target!=label_class)) for (pth,target) in trainset.samples]
+        
         train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2, drop_last=False)
         test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2, drop_last=False)
         return train_loader, test_loader
