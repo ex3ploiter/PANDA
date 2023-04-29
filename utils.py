@@ -74,7 +74,7 @@ def get_outliers_loader(batch_size):
     return outlier_loader
 
 def get_loaders(dataset, label_class, batch_size):
-    if dataset in ['cifar10', 'fashion']:
+    if dataset in ['cifar10', 'fashion','BrainMRI','X-ray','Head-CT']:
         if dataset == "cifar10":
             ds = torchvision.datasets.CIFAR10
             transform = transform_color
