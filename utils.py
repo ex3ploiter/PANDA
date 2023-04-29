@@ -15,14 +15,15 @@ mvtype = ['bottle', 'cable', 'capsule', 'carpet', 'grid', 'hazelnut', 'leather',
 transform_color = transforms.Compose([transforms.Resize(256),
                                       transforms.CenterCrop(224),
                                       transforms.ToTensor(),
-                                      transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+                                    #   transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+                                    ])
 
 transform_gray = transforms.Compose([
                                  transforms.Resize(256),
                                  transforms.CenterCrop(224),
                                  transforms.Grayscale(num_output_channels=3),
                                  transforms.ToTensor(),
-                                 transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                                #  transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
                                 ])
 
 def get_resnet_model(resnet_type=152):
@@ -39,6 +40,34 @@ def get_resnet_model(resnet_type=152):
         return ResNet.resnet101(pretrained=True, progress=True)
     else:  #152
         return ResNet.resnet152(pretrained=True, progress=True)
+
+
+
+class Model(torch.nn.Module):
+    def __init__(self, resnet_type):
+        super().__init__()
+
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+
+        mu = torch.tensor(mean).view(3,1,1).cuda()
+        std = torch.tensor(std).view(3,1,1).cuda()        
+        self.norm = lambda x: ( x - mu ) / std
+
+        if resnet_type == 18:
+            self.backbone=ResNet.resnet18(pretrained=True, progress=True)
+        elif resnet_type == 50:
+            return ResNet.wide_resnet50_2(pretrained=True, progress=True)
+        elif resnet_type == 101:
+            self.backbone=ResNet.resnet101(pretrained=True, progress=True)
+        else:  #152
+            self.backbone=ResNet.resnet152(pretrained=True, progress=True)
+
+    def forward(self, x):
+        x = self.norm(x)
+        z1 = self.backbone(x)
+        
+        return z1
 
 
 def freeze_model(model):
@@ -122,6 +151,40 @@ def get_loaders(dataset, label_class, batch_size):
     else:
         print('Unsupported Dataset')
         exit()
+
+
+def get_loaders_blackbox(dataset, label_class, batch_size, backbone):
+
+    if dataset == "BrainMRI" or dataset == "X-ray" or dataset == "Head-CT":    
+        
+        # transform = transform_color if backbone == 152 else transform_resnet18
+        if dataset == "BrainMRI" : # 2
+            path1='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/Training'
+            path2='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/Testing'
+        elif dataset == "X-ray" : # 0
+            path1='/mnt/new_drive/Sepehr/chest_xray/train'
+            path2='/mnt/new_drive/Sepehr/chest_xray/test'
+
+        elif dataset == "Head-CT" :# 1
+            path1='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Train/'
+            path2='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Test/'
+        
+        
+        trainset = ImageFolder(root=path1, transform=transform_color)
+        testset = ImageFolder(root=path2, transform=transform_color)
+
+        
+        trainset.samples=[(pth,int(target!=label_class)) for (pth,target) in trainset.samples]
+        testset.samples=[(pth,int(target!=label_class)) for (pth,target) in testset.samples ]
+
+
+
+
+        ds=torch.utils.data.ConcatDataset([trainset, testset])
+        train_loader = torch.utils.data.DataLoader(ds, batch_size=batch_size, shuffle=True, num_workers=2)
+
+        return train_loader
+
 
 def clip_gradient(optimizer, grad_clip):
     assert grad_clip>0, 'gradient clip value must be greater than 1'

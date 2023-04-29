@@ -1,12 +1,90 @@
 import numpy as np
 import torch
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score,accuracy_score
 import torch.optim as optim
 import argparse
 from losses import CompactnessLoss, EWCLoss
 import utils
 from copy import deepcopy
 from tqdm import tqdm
+import torchvision
+import torch.nn as nn
+import torchattacks
+import torch.nn.functional as F
+
+
+
+class BB_Model(torch.nn.Module):
+    def __init__(self, backbone):
+        super().__init__()
+
+        mean = [0.485, 0.456, 0.406]
+        std = [0.229, 0.224, 0.225]
+
+        mu = torch.tensor(mean).view(3,1,1).cuda()
+        std = torch.tensor(std).view(3,1,1).cuda()        
+        self.norm = lambda x: ( x - mu ) / std
+        if backbone == 152:
+            self.backbone = torchvision.models.resnet152(pretrained=True)
+        else:
+            self.backbone = torchvision.models.resnet18(pretrained=True)
+
+        self.fc1=nn.Linear(1000,2)        
+    def forward(self, x):
+        x = self.norm(x)
+        z1 = self.backbone(x)
+        z1=self.fc1(z1)
+        
+        return z1
+
+
+def train_model_blackbox(epoch, model, trainloader, device): 
+    model.train()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
+    criterion = nn.CrossEntropyLoss()
+
+    soft = torch.nn.Softmax(dim=1)
+
+    preds = []
+    anomaly_scores = []
+    true_labels = []
+    running_loss = 0
+    accuracy = 0
+
+    
+    with tqdm(trainloader, unit="batch") as tepoch:
+        torch.cuda.empty_cache()
+        for i, (data, targets) in enumerate(tepoch):
+            tepoch.set_description(f"Epoch {epoch + 1}")
+            data, targets = data.to(device), targets.to(device)
+
+            optimizer.zero_grad()
+
+            outputs = model(data)
+            loss = criterion(outputs, targets)
+            loss.backward()
+            optimizer.step()
+
+            true_labels += targets.detach().cpu().numpy().tolist()
+
+            predictions = outputs.argmax(dim=1, keepdim=True).squeeze()
+            preds += predictions.detach().cpu().numpy().tolist()
+            correct = (torch.tensor(preds) == torch.tensor(true_labels)).sum().item()
+            accuracy = correct / len(preds)
+
+            probs = soft(outputs).squeeze()
+            anomaly_scores += probs[:, 1].detach().cpu().numpy().tolist()
+
+            running_loss += loss.item() * data.size(0)
+
+            tepoch.set_postfix(loss=running_loss / len(preds), accuracy=100. * accuracy)
+
+        print("AUC : ",roc_auc_score(true_labels, anomaly_scores) )
+        print("accuracy_score : ",accuracy_score(true_labels, preds, normalize=True) )
+
+    return  model
+
+
 
 def train_model(model, train_loader, test_loader, device, args, ewc_loss):
     model.eval()
@@ -20,6 +98,9 @@ def train_model(model, train_loader, test_loader, device, args, ewc_loss):
         print('Epoch: {}, Loss: {}'.format(epoch + 1, running_loss))
         auc, feature_space = get_score(model, device, train_loader, test_loader)
         print('Epoch: {}, AUROC is: {}'.format(epoch + 1, auc))
+
+    return model
+
 
 
 def run_epoch(model, train_loader, optimizer, criterion, device, ewc, ewc_loss):
@@ -69,6 +150,42 @@ def get_score(model, device, train_loader, test_loader):
     distances = utils.knn_score(train_feature_space, test_feature_space)
 
     auc = roc_auc_score(test_labels, distances)
+    
+    print("CLEAN AUC: ",auc)
+
+    return auc, train_feature_space
+
+def get_score_adv(model_normal,model_blackbox, device, train_loader, test_loader):
+
+    steps=10
+    eps=1/255
+    attack=torchattacks.PGD(model_blackbox, eps=eps, steps=steps, alpha=2.5 * eps / steps)
+
+    train_feature_space = []
+    with torch.no_grad():
+        for (imgs, _) in tqdm(train_loader, desc='Train set feature extracting'):
+            imgs = imgs.to(device)
+            _, features = model_normal(imgs)
+            train_feature_space.append(features)
+        train_feature_space = torch.cat(train_feature_space, dim=0).contiguous().cpu().numpy()
+    test_feature_space = []
+    with torch.no_grad():
+        for (imgs, label) in tqdm(test_loader, desc='Test set feature extracting'):
+            imgs = imgs.to(device)
+            
+            imgs_adv=attack(imgs,label)
+            _, features = model_normal(imgs_adv)
+
+            test_feature_space.append(features)
+        test_feature_space = torch.cat(test_feature_space, dim=0).contiguous().cpu().numpy()
+        # test_labels = test_loader.dataset.targets
+        test_labels=[j for (i,j) in test_loader.dataset.samples]
+
+    distances = utils.knn_score(train_feature_space, test_feature_space)
+
+    auc = roc_auc_score(test_labels, distances)
+
+    print("ADV AUC: ",auc)
 
     return auc, train_feature_space
 
@@ -81,6 +198,14 @@ def main(args):
 
     ewc_loss = None
 
+
+    model_blackbox=BB_Model(18)
+    model_blackbox = model_blackbox.to(device)
+    train_loader_blackbox = utils.get_loaders_blackbox(dataset=args.dataset, label_class=args.label, batch_size=args.batch_size, backbone=args.backbone)
+
+    for epoch in range(10):
+        model_blackbox=train_model_blackbox(epoch,model_blackbox, train_loader_blackbox, device)    
+
     # Freezing Pre-trained model for EWC
     if args.ewc:
         frozen_model = deepcopy(model).to(device)
@@ -91,7 +216,10 @@ def main(args):
 
     utils.freeze_parameters(model)
     train_loader, test_loader = utils.get_loaders(dataset=args.dataset, label_class=args.label, batch_size=args.batch_size)
-    train_model(model, train_loader, test_loader, device, args, ewc_loss)
+    model=train_model(model, train_loader, test_loader, device, args, ewc_loss)
+
+    get_score(model, device, train_loader, test_loader)
+    get_score_adv(model,model_blackbox, device, train_loader, test_loader)    
 
 
 if __name__ == "__main__":
