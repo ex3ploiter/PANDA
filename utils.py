@@ -112,8 +112,9 @@ def get_loaders(dataset, label_class, batch_size):
         
         # trainset.data = trainset.data[idx]
         # trainset.targets = [trainset.targets[i] for i, flag in enumerate(idx, 0) if flag]
-        trainset = torch.utils.data.Subset(trainset, idx)
+        
         trainset.samples=[(pth,int(target!=label_class)) for (pth,target) in trainset.samples]
+        trainset = torch.utils.data.Subset(trainset, idx)
         
         train_loader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2, drop_last=False)
         test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2, drop_last=False)
