@@ -100,8 +100,9 @@ def get_loaders(dataset, label_class, batch_size):
                 path1='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Train/'
                 path2='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Test/'     
         
-        trainset = ImageFolder(root=path1, transform=transform)
-        testset = ImageFolder(root=path2, transform=transform)       
+            transform = transform_color
+            trainset = ImageFolder(root=path1, transform=transform)
+            testset = ImageFolder(root=path2, transform=transform)       
                 
             
 
