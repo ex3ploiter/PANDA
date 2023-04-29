@@ -153,7 +153,7 @@ def get_loaders(dataset, label_class, batch_size):
         exit()
 
 
-def get_loaders_blackbox(dataset, label_class, batch_size, backbone):
+def get_loaders_blackbox(dataset, label_class, batch_size):
 
     if dataset == "BrainMRI" or dataset == "X-ray" or dataset == "Head-CT":    
         

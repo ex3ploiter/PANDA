@@ -201,7 +201,7 @@ def main(args):
 
     model_blackbox=BB_Model(18)
     model_blackbox = model_blackbox.to(device)
-    train_loader_blackbox = utils.get_loaders_blackbox(dataset=args.dataset, label_class=args.label, batch_size=args.batch_size, backbone=args.backbone)
+    train_loader_blackbox = utils.get_loaders_blackbox(dataset=args.dataset, label_class=args.label, batch_size=args.batch_size)
 
     for epoch in range(10):
         model_blackbox=train_model_blackbox(epoch,model_blackbox, train_loader_blackbox, device)    
