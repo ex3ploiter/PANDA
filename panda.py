@@ -170,17 +170,21 @@ def get_score_adv(model_normal,model_blackbox, device, train_loader, test_loader
             train_feature_space.append(features)
         train_feature_space = torch.cat(train_feature_space, dim=0).contiguous().cpu().numpy()
     test_feature_space = []
-    with torch.no_grad():
-        for (imgs, label) in tqdm(test_loader, desc='Test set feature extracting'):
-            imgs = imgs.to(device)
-            
-            imgs_adv=attack(imgs,label)
-            _, features = model_normal(imgs_adv)
+    # with torch.no_grad():
+    for (imgs, label) in tqdm(test_loader, desc='Test set feature extracting'):
+        imgs = imgs.to(device)
+        
+        imgs_adv=attack(imgs,label)
+        _, features = model_normal(imgs_adv)
+        test_feature_space.append(features)
 
-            test_feature_space.append(features)
-        test_feature_space = torch.cat(test_feature_space, dim=0).contiguous().cpu().numpy()
-        # test_labels = test_loader.dataset.targets
-        test_labels=[j for (i,j) in test_loader.dataset.samples]
+        torch.cuda.empty_cache()
+        del imgs,labels,imgs_adv,features
+
+
+    test_feature_space = torch.cat(test_feature_space, dim=0).contiguous().cpu().numpy()
+    # test_labels = test_loader.dataset.targets
+    test_labels=[j for (i,j) in test_loader.dataset.samples]
 
     distances = utils.knn_score(train_feature_space, test_feature_space)
 
