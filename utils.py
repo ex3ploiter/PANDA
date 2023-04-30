@@ -128,9 +128,9 @@ def get_loaders(dataset, label_class, batch_size):
             elif dataset == "Head-CT" :# 1
 #                 path1='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Train/'
 #                 path2='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Test/'    
-                path1='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/HEAD_CT/Train'
-                path2='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/HEAD_CT/Test'
-        
+                path1='/mnt/new_drive/Masoud_WorkDir/Head-CT/TrainWithAnomal/Train'
+                path2='/mnt/new_drive/Masoud_WorkDir/Head-CT/TrainWithAnomal/Test'
+                        
             transform = transform_color
             trainset = ImageFolder(root=path1, transform=transform)
             testset = ImageFolder(root=path2, transform=transform)       
@@ -168,9 +168,9 @@ def get_loaders_blackbox(dataset, label_class, batch_size):
             path2='/mnt/new_drive/Sepehr/chest_xray/test'
         
         elif dataset == "Head-CT" :# 0
-            path1='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/HEAD_CT/Train'
-            path2='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/HEAD_CT/Test'
-        
+            path1='/mnt/new_drive/Masoud_WorkDir/Head-CT/TrainWithAnomal/Train'
+            path2='/mnt/new_drive/Masoud_WorkDir/Head-CT/TrainWithAnomal/Test'
+                    
         
         trainset = ImageFolder(root=path1, transform=transform_color)
         testset = ImageFolder(root=path2, transform=transform_color)
