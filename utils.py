@@ -126,6 +126,8 @@ def get_loaders(dataset, label_class, batch_size):
                 path2='/mnt/new_drive/Sepehr/chest_xray/test'
 
             elif dataset == "Head-CT" :# 1
+#                 path1='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Train/'
+#                 path2='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Test/'    
                 path1='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/HEAD_CT/Train'
                 path2='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/HEAD_CT/Test'
         
@@ -216,7 +218,7 @@ class Wrap_Model(torch.nn.Module):
 
     def forward(self, x):
         test_adversarial_feature_space = []
-        features = self.model(x)
+        _, features = self.model(x)
         test_adversarial_feature_space.append(features.detach().cpu())
         test_adversarial_feature_space = torch.cat(test_adversarial_feature_space).detach().cpu().numpy()
         distances = knn_score(self.train_feature_space, test_adversarial_feature_space)
