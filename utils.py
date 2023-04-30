@@ -5,7 +5,7 @@ import numpy as np
 import faiss
 import ResNet
 from torchvision.datasets import  ImageFolder
-
+from tqdm import tqdm 
 
 
 mvtype = ['bottle', 'cable', 'capsule', 'carpet', 'grid', 'hazelnut', 'leather',
@@ -164,10 +164,10 @@ def get_loaders_blackbox(dataset, label_class, batch_size):
         elif dataset == "X-ray" : # 0
             path1='/mnt/new_drive/Sepehr/chest_xray/train'
             path2='/mnt/new_drive/Sepehr/chest_xray/test'
-
-        elif dataset == "Head-CT" :# 1
-            path1='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Train/'
-            path2='/mnt/new_drive/Masoud_WorkDir/Transformaly_Test/head_ct/Test/'
+        
+        elif dataset == "Head-CT" :# 0
+            path1='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/HEAD_CT/Train'
+            path2='/mnt/new_drive/Masoud_WorkDir/MeanShift_Tests/HEAD_CT/Test'
         
         
         trainset = ImageFolder(root=path1, transform=transform_color)
@@ -196,3 +196,29 @@ def clip_gradient(optimizer, grad_clip):
             param.grad.data.clamp_(-grad_clip, grad_clip)
 
 
+
+
+class Wrap_Model(torch.nn.Module):
+    def __init__(self, model, train_loader):
+        super().__init__()
+
+        self.model = model
+
+        self.train_feature_space = []
+        with torch.no_grad():
+            for (imgs, _) in tqdm(train_loader, desc='Train set feature extracting'):
+                imgs = imgs.to('cuda')
+                _, features = model(imgs)
+                self.train_feature_space.append(features)
+            self.train_feature_space = torch.cat(self.train_feature_space, dim=0).contiguous().cpu().numpy()
+        
+
+
+    def forward(self, x):
+        test_adversarial_feature_space = []
+        features = self.model(x)
+        test_adversarial_feature_space.append(features.detach().cpu())
+        test_adversarial_feature_space = torch.cat(test_adversarial_feature_space).detach().cpu().numpy()
+        distances = knn_score(self.train_feature_space, test_adversarial_feature_space)
+        
+        return distances        
